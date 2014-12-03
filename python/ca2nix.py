@@ -39,6 +39,31 @@ def is_ca_file(path):
     except IOError:
         return False
 
+
+def convert_image(img, block):
+    img_name = os.path.basename(img.name)
+    ctime = img.attrs['ctime']
+    dt = datetime.datetime.fromtimestamp(ctime / 1000.0)
+    dt_str = dt.strftime("%A, %d. %B %Y %I:%M%p")
+    print("   |- image: %3s  %s [%s]" % (img_name, dt_str, ctime))
+    subgroups = ['kymoFg', 'kymoBg', 'roiFg', 'roiBg']
+    typemap = {
+        'kymoFg': 'ca.kymo.fg',
+        'kymoBg': 'ca.kymo.bg',
+        'roiFg': 'ca.roi.fg',
+        'roiBg': 'ca.roi.bg'
+    }
+
+    for sg in subgroups:
+        ds = img[sg]
+        data = np.array(ds)
+        ds_name = os.path.basename(ds.name)
+        print("   | |- %s %s [%s]" % (ds_name, str(data.shape), str(data.dtype)))
+
+        da_name = '%s.%s' % (img_name, sg)
+        block.create_data_array(str(da_name), typemap[sg], data=data)
+
+
 def convert_ca_file(path):
     root, ext = os.path.splitext(path)
     h5fd = h5.File(path, mode='r')
@@ -54,28 +79,7 @@ def convert_ca_file(path):
         images = find_images(neuron)
         images = sorted(images, key=lambda x: int(x.name[len(neuron.name)+1:]))
         for img in images:
-            img_name = img.name[len(neuron.name)+1:]
-            ctime = img.attrs['ctime']
-            dt = datetime.datetime.fromtimestamp(ctime / 1000.0)
-            dt_str = dt.strftime("%A, %d. %B %Y %I:%M%p")
-            print("   |- image: %3s  %s [%s]" % (img_name, dt_str, ctime))
-            subgroups = ['kymoFg', 'kymoBg', 'roiFg', 'roiBg']
-            typemap = {
-                'kymoFg': 'ca.kymo.fg',
-                'kymoBg': 'ca.kymo.bg',
-                'roiFg': 'ca.roi.fg',
-                'roiBg': 'ca.roi.bg'
-            }
-
-            for sg in subgroups:
-                ds = img[sg]
-                data = np.array(ds)
-                ds_name = ds.name[len(img.name)+1:]
-                print("   | |- %s %s [%s]" % (ds_name, str(data.shape), str(data.dtype)))
-
-                da_name = '%s.%s' % (img_name, sg)
-                block.create_data_array(str(da_name), typemap[sg], data=data)
-
+            convert_image(img, block)
             print("   |  ")
 
 if __name__ == '__main__':
