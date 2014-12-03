@@ -84,7 +84,8 @@ def convert_image(img, block):
     for name, cfunc in typemap.iteritems():
         cfunc(img[name], block)
 
-def convert_ca_file(path):
+
+def convert_ca_file(path, metadata):
     root, ext = os.path.splitext(path)
     h5fd = h5.File(path, mode='r')
     nix_path = "%s.nix.h5" % root
@@ -96,6 +97,15 @@ def convert_ca_file(path):
         print("   - neuron: %s" % name)
 
         block = nifd.create_block(str(name), 'ca.neuron')
+        section = nifd.create_section(str(name), 'experiment/imaging')
+        block.metadata = section
+        section['Type'] = 'calcium imaging'
+        species = section.create_section('Subject', 'subject')
+        species['Species'] = 'Mongolian gerbil'
+
+        if 'age' in metadata:
+            species['Age'] = metadata['age']
+
         images = find_images(neuron)
         images = sorted(images, key=lambda x: int(x.name[len(neuron.name)+1:]))
         for img in images:
@@ -105,13 +115,18 @@ def convert_ca_file(path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert old CaManager files to nix')
     parser.add_argument('files', nargs='+', default=None)
+    parser.add_argument('--age', type=int, default=None)
     args = parser.parse_args()
+
+    metadata = {}
+    if args.age is not None:
+        metadata['age'] = args.age
 
     for f in args.files:
         if is_nix_file(f):
             print('%s is in nix format already' % f)
         elif is_ca_file(f):
             print('Found CaManager file: %s' %f)
-            convert_ca_file(f)
+            convert_ca_file(f, metadata)
 
 
