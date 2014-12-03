@@ -40,29 +40,49 @@ def is_ca_file(path):
         return False
 
 
+def convert_data_generic(dset, block):
+    pr_name = os.path.basename(dset.parent.name)
+    data = np.array(dset)
+    ds_name = os.path.basename(dset.name).lower()
+    da_name = "%s.%s" % (pr_name, ds_name)
+    da_type = "%s.%s" % (ds_name[-2:], ds_name[:-1])
+    da = block.create_data_array(str(da_name), str(da_type), data=data)
+    print("   | |- %s %s [%s]" % (da_name, str(data.shape), str(data.dtype)))
+    return da
+
+
+def convert_kymo(dset, block):
+    da = convert_data_generic(dset, block)
+    da.label = 'fluorescent'
+
+    dim = da.append_sampled_dimension(30)
+    dim.unit = "ms"
+    dim.label = "time"
+    #fixme: add global offset? dim.offset = 0.0
+
+    dim = da.append_sampled_dimension(1)
+    dim.label = 'location'
+
+
+def convert_roi(dset, block):
+    da = convert_data_generic(dset, block)
+
+
 def convert_image(img, block):
     img_name = os.path.basename(img.name)
     ctime = img.attrs['ctime']
     dt = datetime.datetime.fromtimestamp(ctime / 1000.0)
     dt_str = dt.strftime("%A, %d. %B %Y %I:%M%p")
     print("   |- image: %3s  %s [%s]" % (img_name, dt_str, ctime))
-    subgroups = ['kymoFg', 'kymoBg', 'roiFg', 'roiBg']
     typemap = {
-        'kymoFg': 'ca.kymo.fg',
-        'kymoBg': 'ca.kymo.bg',
-        'roiFg': 'ca.roi.fg',
-        'roiBg': 'ca.roi.bg'
+        'kymoFg': convert_kymo,
+        'kymoBg': convert_kymo,
+        'roiFg': convert_roi,
+        'roiBg': convert_roi
     }
 
-    for sg in subgroups:
-        ds = img[sg]
-        data = np.array(ds)
-        ds_name = os.path.basename(ds.name)
-        print("   | |- %s %s [%s]" % (ds_name, str(data.shape), str(data.dtype)))
-
-        da_name = '%s.%s' % (img_name, sg)
-        block.create_data_array(str(da_name), typemap[sg], data=data)
-
+    for name, cfunc in typemap.iteritems():
+        cfunc(img[name], block)
 
 def convert_ca_file(path):
     root, ext = os.path.splitext(path)
