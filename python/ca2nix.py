@@ -45,7 +45,7 @@ def convert_data_generic(dset, block):
     data = np.array(dset)
     ds_name = os.path.basename(dset.name).lower()
     da_name = "%s.%s" % (pr_name, ds_name)
-    da_type = "%s.%s" % (ds_name[-2:], ds_name[:-1])
+    da_type = "%s.%s" % (ds_name[:-2], ds_name[-2:])
     da = block.create_data_array(str(da_name), str(da_type), data=data)
     print("   | |- %s %s [%s]" % (da_name, str(data.shape), str(data.dtype)))
     return da
