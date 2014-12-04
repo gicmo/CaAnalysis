@@ -97,10 +97,11 @@ def convert_ca_file(path, metadata):
         print("   - neuron: %s" % name)
 
         block = nifd.create_block(str(name), 'ca.neuron')
-        section = nifd.create_section(str(name), 'experiment/imaging')
+        section = nifd.create_section(str(name), 'Experiment')
         block.metadata = section
-        section['Type'] = 'calcium imaging'
-        species = section.create_section('Subject', 'subject')
+        section['Type'] = metadata['experiment']
+        section['Subject'] = nix.S('subject')
+        species = section['Subject']
         species['Species'] = 'Mongolian gerbil'
 
         if 'age' in metadata:
