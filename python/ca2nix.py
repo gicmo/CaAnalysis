@@ -63,6 +63,16 @@ def convert_kymo(dset, block):
     dim = da.append_sampled_dimension(1)
     dim.label = 'location'
 
+    parent = dset.parent
+    metadata = block.metadata['Images']
+    ctime = parent.attrs['ctime']
+
+    metadata[da.name] = nix.S('image')
+    cur_md = metadata[da.name]
+    cur_md['Time'] = ctime/1000
+    cur_md.props['Time'].unit = 's'
+    da.metadata = cur_md
+
 
 def convert_roi(dset, block):
     da = convert_data_generic(dset, block)
@@ -103,6 +113,8 @@ def convert_ca_file(path, metadata):
         section['Subject'] = nix.S('subject')
         species = section['Subject']
         species['Species'] = 'Mongolian gerbil'
+
+        section['Images'] = nix.S('imaging/calcium imaging')
 
         if 'age' in metadata:
             species['Age'] = metadata['age']
