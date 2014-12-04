@@ -115,10 +115,11 @@ def convert_ca_file(path, metadata):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert old CaManager files to nix')
     parser.add_argument('files', nargs='+', default=None)
+    parser.add_argument('experiment', choices=['pharma', 'devo'])
     parser.add_argument('--age', type=int, default=None)
     args = parser.parse_args()
 
-    metadata = {}
+    metadata = {'experiment': 'pharmacology' if args.experiment == 'pharma' else 'development'}
     if args.age is not None:
         metadata['age'] = args.age
 
