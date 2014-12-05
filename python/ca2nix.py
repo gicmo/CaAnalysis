@@ -55,13 +55,13 @@ def convert_kymo(dset, block):
     da = convert_data_generic(dset, block)
     da.label = 'fluorescent'
 
+    dim = da.append_sampled_dimension(1)
+    dim.label = 'location'
+
     dim = da.append_sampled_dimension(30)
     dim.unit = "ms"
     dim.label = "time"
     #fixme: add global offset? dim.offset = 0.0
-
-    dim = da.append_sampled_dimension(1)
-    dim.label = 'location'
 
     parent = dset.parent
     metadata = block.metadata['Images']
