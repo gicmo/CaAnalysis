@@ -72,6 +72,7 @@ def convert_kymo(dset, block):
     cur_md['Time'] = ctime/1000
     cur_md.props['Time'].unit = 's'
     da.metadata = cur_md
+    cur_md['ImageIndex'] = int(da.name.split('.')[0])
 
 
 def convert_roi(dset, block):
