@@ -37,8 +37,24 @@ def pharma_dff(block, name, data, F=None):
     suffix = 'green' if F is None else 'red'
     dff = deltafoverf(data, F)
     dff_mean = dff.mean(axis=0)
-    block.create_data_array(name + '.' + suffix, 'dff', data=dff)
-    block.create_data_array(name + '.' + suffix + '.mean', 'dff.mean', data=dff_mean)
+    da = block.create_data_array(name + '.' + suffix, 'dff', data=dff)
+    da.label = 'dF/F'
+
+    dim = da.append_sampled_dimension(1)
+    dim.label = 'location'
+
+    dim = da.append_sampled_dimension(30)
+    dim.label = 'time'
+    dim.unit = 'ms'
+
+    da = block.create_data_array(name + '.' + suffix + '.mean', 'dff.mean', data=dff_mean)
+    dim = da.append_sampled_dimension(30)
+    dim.label = 'time'
+    dim.unit = 'ms'
+
+    dim = da.append_set_dimension()
+
+    return da
 
 
 def pharma_image(block, image):
