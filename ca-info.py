@@ -46,8 +46,15 @@ def analyse_neuron(neuron):
 
     if 'region' in meta:
         props['region'] = meta['region']
+    if 'age' in meta:
+        props['age'] = meta['age']
+    if 'comment' in meta:
+        props['comment'] = meta['comment']
+    if 'condition' in meta:
+        props['condition'] = meta['condition']
 
-    images = items_of_type(neuron.groups, "image.ca")
+    images = sorted(items_of_type(neuron.groups, "image.ca"),
+                    key=lambda x: x.metadata['creation_time'])
 
     for idx, (k, v) in enumerate(props.items()):
         sign = get_marker(idx, len(props)+len(images))
