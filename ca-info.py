@@ -6,6 +6,8 @@ from __future__ import absolute_import
 from __future__ import division
 
 import argparse
+
+import datetime
 import nixio as nix
 import numpy as np
 
@@ -28,7 +30,14 @@ def analyse_image(image, is_last):
     channels = item_of_type(das, "channel")
     red = list(np.nonzero(np.array(channels) == 1)[0])
     kymo = item_of_type(das, 'kymo.fg')
+
+    meta = image.metadata
+    ts = datetime.datetime.fromtimestamp(meta['creation_time'] / 1000.0)
+
     sign = u' ' if is_last else u'│'
+    print(u'   %s ├── filename: %s' % (sign, str(meta['filename'])))
+    print(u'   %s ├── time: %s' % (sign, str(ts.strftime("%H:%M:%S %d-%m-%Y"))))
+    print(u'   %s ├── condition: %s' % (sign, str(meta['condition'])))
     print(u'   %s ├── kymo: %s' % (sign, str(kymo.shape)))
     print(u'   %s └── red: %s' % (sign, str(red)))
 
