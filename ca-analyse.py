@@ -28,18 +28,6 @@ loops = {
 pulses = [1, 3, 10, 25]
 
 
-def find_files_recursive(dir, glob):
-    entries = os.listdir(dir)
-    res = []
-    for e in entries:
-        fn = os.path.join(dir, e)
-        if os.path.isdir(fn):
-            res += find_files_recursive(fn, glob)
-        elif fnmatch.fnmatch(e, glob):
-            res += [fn]
-    res = map(os.path.abspath, res)
-    return res
-
 
 def valid_column(row, colid):
     if not (colid < len(row)):
