@@ -27,6 +27,7 @@ loops = {
 
 pulses = [1, 3, 10, 25]
 
+ages = [10, 11, 13, 14, 15, 16, 17, 18, 60]
 
 
 def valid_column(row, colid):
@@ -57,10 +58,9 @@ def load_exclude(path):
 
 
 class CaAnalyser(object):
-    def __init__(self, root, over, condition, age, excludes=None):
+    def __init__(self, root, over, condition, excludes=None):
         self.root = root
         self.condition = condition
-        self.age = age
         self.excludes = excludes or {}
         self.filelist = None
         self.bsl = 10 # baselinesize
@@ -81,7 +81,7 @@ class CaAnalyser(object):
         self.filelist = find_files_recursive(self.root, "[!c]*.nix")
         if len(self.filelist) == 0:
             return
-        outname = "ca-%s-P%s-%s.nix" % (self.condition, self.age, self.over)
+        outname = "ca-%s-%s.nix" % (self.condition, self.over)
         self.nf = nix.File.open(outname, nix.FileMode.Overwrite)
         self.dff_full = self.nf.create_block("full", "dff.full")
         self.dff_mean = self.nf.create_block("mean", "dff.mean")
@@ -94,12 +94,33 @@ class CaAnalyser(object):
             da.append_set_dimension()
             da.append_set_dimension()
 
+        self.avgs = [b.create_data_array("ap%d.avg" % p, "pulse.%d.max.avg" % p,
+                                          dtype='d', shape=(0,)) for p in pulses]
+        for da in self.avgs:
+            da.append_set_dimension()
+            
+        self.ages = { }
+
+        for p in pulses:
+            for a in ages:
+                name = "P%d.ap%d" % (a, p)
+                da = b.create_data_array(name, "nix.position", dtype='d', shape=(0,))
+                da.append_set_dimension()                                          
+                self.ages[name] = da
+                
+                mtag = b.create_multi_tag(name, "pulse.avg@age", da)
+                mtag.references.append(self.avgs[pulses.index(p)])          
+
     def process(self):
         for path in self.filelist:
             self.process_file(path)
 
     def process_file(self, path):
-        cf = nix.File.open(path, nix.FileMode.ReadOnly)
+        try:
+            cf = nix.File.open(path, nix.FileMode.ReadOnly)
+        except:
+            print("[W] could not open %s" % path)
+            return
         neurons = [b for b in cf.blocks if b.type == 'neuron']
 
         for neuron in neurons:
@@ -107,8 +128,7 @@ class CaAnalyser(object):
             meta = neuron.metadata
 
             nc = meta["condition"].lower() if "condition" in meta else ""
-            age = meta["age"].lower() if "age" in meta else ""
-
+ 
             exclude = self.excludes.get(name, {"image": None})["image"] == "*"
             msg = name
             if exclude:
@@ -116,9 +136,6 @@ class CaAnalyser(object):
             elif nc != self.condition:
                 exclude = True
                 msg += " skipping (wrong condition)"
-            elif age != self.age:
-                exclude = True
-                msg += " skipping (wrong age)"
 
             msg = (u'├── ' if exclude else u'├─┬ ' ) + msg
             print(msg)
@@ -131,7 +148,8 @@ class CaAnalyser(object):
 
     def process_neuron(self, neuron):
         self.neuron = neuron
-
+        age = int(neuron.metadata['age'])
+        
         images = sorted(items_of_type(neuron.groups, "image.ca"),
                         key=lambda x: x.metadata['creation_time'])
 
@@ -143,22 +161,28 @@ class CaAnalyser(object):
 
         print(u'│ ├─ Tags: ', end='')
         dff_peak = self.dff_peak
+        
         for l, p in pos_loop.items():
             print("ap%d " % l, end='')
             pdat = np.zeros((len(p), 2))
             pdat[:, 0] = p
             aps = "ap%d" % l
-            name = "%s.%s" % (self.neuron.name, aps)
-            pos = dff_peak.create_data_array(name + ".pos", "nix.positions", data=pdat)
+            name =  "%s.%s" % (self.neuron.name, aps)
+            pos = dff_peak.create_data_array(name + ".all", "nix.positions", data=pdat)
             pos.append_set_dimension()
             pos.append_set_dimension()
+            
             mtag = self.dff_peak.create_multi_tag(name, aps, pos)
             mtag.references.append(self.peaks[pulses.index(l)])
+            
             data = np.array([mtag.retrieve_data(pc, 0)[0] for pc in range(len(p))])
-            avg = dff_peak.create_data_array(name + ".avg", "pulse.%d.max.avg" % l, data=data.mean())
-            mtag.create_feature(avg, nix.LinkType.Untagged)
+            avg = self.avgs[pulses.index(l)]
+            avg_pos = [avg.shape[0]]
+            avg.append(data.mean())
+            key = "P%d.ap%d" % (age, l)
+            self.ages[key].append(np.array([avg_pos]).reshape((1, )), axis=0)
+            
             # TODO: dimensions, metadata
-
         print('')
 
     def process_image(self, image):
@@ -186,7 +210,7 @@ class CaAnalyser(object):
         pos_loop = defaultdict(list)
 
         print(" [", end='')
-        for idx, l in enumerate(loop):
+        for idx, l in enumerate(loop[:len(red)]):
             print('%2d; ' % self.loop[idx], end='')
             img = imgs[idx]
 
@@ -254,15 +278,16 @@ class CaAnalyser(object):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("root")
-    parser.add_argument("over", choices=["red", "green"])
     parser.add_argument("condition", choices=['noisebox', 'control'])
-    parser.add_argument("age", choices=["10", "11", "13", "14", "15", "16", "17", "18", "60"])
+    # parser.add_argument("pulse", choices=map(lambda p: 'AP'+str(parser), pulses))
+    # parser.add_argument("age", choices=["10", "11", "13", "14", "15", "16", "17", "18", "60"])
+    parser.add_argument("over", choices=["red", "green"])
     parser.add_argument("--exclude", type=str, default=None)
 
     args = parser.parse_args()
     excludes = load_exclude(args.exclude)
 
-    analyser = CaAnalyser(args.root, args.over, args.condition, args.age, excludes)
+    analyser = CaAnalyser(args.root, args.over, args.condition, excludes)
     analyser.setup()
     analyser.process()
     analyser.finish()
