@@ -11,6 +11,8 @@ import datetime
 import nixio as nix
 import numpy as np
 
+from ca.nix import *
+
 
 def items_of_type(lst, the_type):
     return [x for x in lst if x.type == the_type]
@@ -48,8 +50,7 @@ def get_marker(idx, count):
     return u'├─'
 
 
-def analyse_neuron(neuron):
-    print(" " + neuron.name)
+def analyse_neuron(neuron, args):          
     meta = neuron.metadata
     props = { }
 
@@ -61,6 +62,14 @@ def analyse_neuron(neuron):
         props['comment'] = meta['comment']
     if 'condition' in meta:
         props['condition'] = meta['condition']
+        
+    if args.condition is not None and args.condition != props.get("condition", ""):        
+       return
+            
+    print(" " + neuron.name)
+
+    if args.name_only:
+        return
 
     images = sorted(items_of_type(neuron.groups, "image.ca"),
                     key=lambda x: x.metadata['creation_time'])
@@ -75,18 +84,22 @@ def analyse_neuron(neuron):
 
 def main():
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("file")
-
+    parser.add_argument("path")
+    parser.add_argument("--condition", default=None)
+    parser.add_argument("--name-only", default=False, action="store_true")
     args = parser.parse_args()
+    
+    filelist = find_files_recursive(args.path, "[!c]*.nix")
 
-    nf = nix.File.open(args.file, nix.FileMode.ReadOnly)
+    for f in filelist:
+        nf = nix.File.open(f, nix.FileMode.ReadOnly)
 
-    neurons = [b for b in nf.blocks if b.type == 'neuron']
-    if len(neurons) != 1:
-        print("[W] More then one neuron in file, funny")
+        neurons = [b for b in nf.blocks if b.type == 'neuron']
+        if len(neurons) != 1:
+            print("[W] More then one neuron in file, funny")
 
-    for n in neurons:
-        analyse_neuron(n)
+        for n in neurons:
+            analyse_neuron(n, args)
 
 
 if __name__ == '__main__':
