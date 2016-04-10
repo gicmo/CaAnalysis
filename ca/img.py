@@ -3,16 +3,19 @@
 import numpy as np
 
 
-def dff(data, df=None, baseline=10):
+def dff(data, over=None, baseline=10):
     l = data.shape[0]
     t = data.shape[1]
 
-    if df is None:
-        df = data[:, 0:baseline].mean(axis=1).reshape((l, 1))
-
-    df = np.tile(df, (1, t))
-
-    return (data - df) / df
+    f0 = data[:, 0:baseline].mean(axis=1).reshape((l, 1))
+    
+    if over is None:
+        over = np.array(f0, copy=True)
+    
+    over = np.tile(over, (1, t))
+    f0 = np.tile(f0, (1, t))
+    
+    return (data - f0) / over
 
 
 def split_image(data, n=91):
