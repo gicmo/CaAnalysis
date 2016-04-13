@@ -14,6 +14,7 @@ from collections import defaultdict
 
 import nixio as nix
 import numpy as np
+import time
 
 from ca.nix import *
 from ca.img import *
@@ -39,7 +40,7 @@ def valid_column(row, colid):
 
 def load_exclude(path):
     import csv
-    excludes = {}
+    excludes = defaultdict(list)
 
     if path is None:
         return excludes
@@ -50,20 +51,22 @@ def load_exclude(path):
             ncols = len(row)
             if ncols < 1:
                 continue
-            excludes[row[0]] = {
-                "image": row[1] if valid_column(row, 1) else "*",
-                "pulse": row[2] if valid_column(row, 2) else "*"
-            }
+            excludes[row[0]] += [{"image": row[1], "pulse": row[2]}]
+
+    #for k, v in excludes.items():
+    #    for ex in v:
+    #       print('%s %s %s' % (k, ex['image'], ex['pulse']))
+
     return excludes
 
 
 class CaAnalyser(object):
-    def __init__(self, root, over, condition, excludes=None):
+    def __init__(self, root, over, baseline, dlen, excludes):
         self.root = root
-        self.condition = condition
         self.excludes = excludes or {}
         self.filelist = None
-        self.bsl = 10 # baselinesize
+        self.bsl = baseline
+        self.dlen = dlen
         self.over = over
         # NIX outfile related things
         self.nf = None
@@ -89,7 +92,7 @@ class CaAnalyser(object):
         self.filelist = find_files_recursive(self.root, "[!c]*.nix")
         if len(self.filelist) == 0:
             return
-        outname = "ca-%s-%s.nix" % (self.condition, self.over)
+        outname = "ca-%s-bs%d-%s.nix" % (self.over, self.bsl, str(self.dlen or 'auto'))
         self.nf = nix.File.open(outname, nix.FileMode.Overwrite)
         self.dff_full = self.nf.create_block("full", "dff.full")
         self.dff_mean = self.nf.create_block("mean", "dff.mean")
@@ -138,6 +141,20 @@ class CaAnalyser(object):
         mtag.create_feature(self.fcnd, nix.LinkType.Tagged)
         mtag.create_feature(self.fneu, nix.LinkType.Tagged)
 
+        s = self.nf.create_section('params', 'params')
+        s['baseline'] = self.bsl
+        s['length'] = self.dlen or 'auto'
+        s['over'] = self.over
+
+    def should_exclude_subimage(self, neuron, image, subimage):
+        if neuron not in self.excludes:
+            return False
+        ex = self.excludes[neuron]
+        for i in ex:
+            if i['image'] == str(image) and i['pulse'] == str(subimage):
+                return True
+        return False
+
     def process(self):
         for path in self.filelist:
             self.process_file(path)
@@ -152,26 +169,24 @@ class CaAnalyser(object):
 
         for neuron in neurons:
             name = neuron.name
-            meta = neuron.metadata
+            self.neuron = neuron
 
-            nc = meta["condition"].lower() if "condition" in meta else ""
- 
-            exclude = self.excludes.get(name, {"image": None})["image"] == "*"
+            exclude = self.should_exclude_subimage(name, '*', '*')
             msg = name
             if exclude:
                 msg += " skipping (exclude file)"
-            elif nc != self.condition:
-                exclude = True
-                msg += " skipping (wrong condition)"
 
             msg = (u'├── ' if exclude else u'├─┬ ' ) + msg
             print(msg)
             if exclude:
+                time.sleep(0.5)
+                self.neuron = None
                 continue
 
             self.process_neuron(neuron)
 
         cf.close()
+        cf = None
 
     def neuron_id(self, name):
         date = int(name[:8])
@@ -179,7 +194,6 @@ class CaAnalyser(object):
         return date << 8 | suffix
 
     def process_neuron(self, neuron):
-        self.neuron = neuron
         name = neuron.name
         age = int(neuron.metadata['age'])
         cnd = int(neuron.metadata['condition'].lower() == 'noisebox')
@@ -191,8 +205,12 @@ class CaAnalyser(object):
                         key=lambda x: x.metadata['creation_time'])
 
         pos_loop = defaultdict(list)
-        
+
         for image in images:
+            if self.should_exclude_subimage(name, image.name, '*'):
+                print(u'│ ├── image: %s excluded. Skipping!' % (image.name))
+                continue
+
             pos = self.process_image(image)
             for l, p in pos.items():
                 pos_loop[l] += p
@@ -236,10 +254,8 @@ class CaAnalyser(object):
         self.fneu.append(np.array([self.neuron_id(name)]))
         print('')
 
-
     def process_image(self, image):
         self.image = image
-
         meta = image.metadata
         das = image.data_arrays
         channels = item_of_type(das, "channel")
@@ -262,7 +278,10 @@ class CaAnalyser(object):
 
         print(" [", end='')
         for idx, l in enumerate(loop[:len(red)]):
-            print('%2d; ' % self.loop[idx], end='')
+            print('%2d: ' % self.loop[idx], end='')
+            if self.should_exclude_subimage(self.neuron.name, image.name, idx+1):
+                print('SK; ', end='')
+                continue
             img = imgs[idx]
 
             over_data = img[1] if self.over == 'red' else None
@@ -286,6 +305,7 @@ class CaAnalyser(object):
                 mi = self.neuron_meta.create_section(di.name, di.type)
                 mi['condition'] = l
                 di.metadata = mi
+            print('ok; ', end='')
 
         print('] ')
         return pos_loop
@@ -331,16 +351,21 @@ class CaAnalyser(object):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("root")
-    parser.add_argument("condition", choices=['noisebox', 'control'])
     # parser.add_argument("pulse", choices=map(lambda p: 'AP'+str(parser), pulses))
     # parser.add_argument("age", choices=["10", "11", "13", "14", "15", "16", "17", "18", "60"])
     parser.add_argument("over", choices=["red", "green"])
-    parser.add_argument("--exclude", type=str, default=None)
+    parser.add_argument("--baseline", type=int, default=10)
+    parser.add_argument("--length", type=int, default=None)
 
     args = parser.parse_args()
-    excludes = load_exclude(args.exclude)
 
-    analyser = CaAnalyser(args.root, args.over, args.condition, excludes)
+    excludes = None
+    ep = os.path.join(args.root, 'exludes.csv')
+    if os.path.exists(ep):
+        print("Using exludes.csv @ %s" % ep)
+        excludes = load_exclude(ep)
+
+    analyser = CaAnalyser(args.root, args.over, args.baseline, args. length, excludes)
     analyser.setup()
     analyser.process()
     analyser.finish()
