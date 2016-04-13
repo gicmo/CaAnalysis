@@ -73,11 +73,17 @@ class CaAnalyser(object):
         self.peaks = None
         self.avgs = None
         self.ages = None
+        self.means = None
+        self.fcnd = None  # neuron condition [feature]
+        self.fage = None  # neuron age [feature]
+        self.fneu = None  # neuron name [feature]
         # Current processing state
         self.neuron = None
         self.image = None
         self.idx = 0
         self.loop = None
+        # helper stuff
+        self.chmap = map(chr, range(ord('a'), ord('z')+1))
 
     def setup(self):
         self.filelist = find_files_recursive(self.root, "[!c]*.nix")
@@ -112,6 +118,25 @@ class CaAnalyser(object):
                 
                 mtag = b.create_multi_tag(name, "pulse.avg@age", da)
                 mtag.references.append(self.avgs[pulses.index(p)])
+
+        self.fage = b.create_data_array("age", "feature.age", dtype='i', shape=(0,))
+        self.fage.append_set_dimension()
+
+        self.fcnd = b.create_data_array("condition", "feature.condition", dtype='i', shape=(0,))
+        self.fcnd.append_set_dimension()
+
+        self.fneu = b.create_data_array("neuron", "feature.neuron", dtype='u8', shape=(0,))
+        self.fneu.append_set_dimension()
+
+        self.means = b.create_data_array("peak.averages", "nix.position", dtype='d', shape=(0,))
+
+        mtag = b.create_multi_tag("peak.averages", "pulse.avg", self.means)
+        for i, da in enumerate(self.avgs):
+            mtag.references.append(da)
+
+        mtag.create_feature(self.fage, nix.LinkType.Tagged)
+        mtag.create_feature(self.fcnd, nix.LinkType.Tagged)
+        mtag.create_feature(self.fneu, nix.LinkType.Tagged)
 
     def process(self):
         for path in self.filelist:
@@ -148,11 +173,18 @@ class CaAnalyser(object):
 
         cf.close()
 
+    def neuron_id(self, name):
+        date = int(name[:8])
+        suffix = self.chmap.index(name[8:])
+        return date << 8 | suffix
+
     def process_neuron(self, neuron):
         self.neuron = neuron
+        name = neuron.name
         age = int(neuron.metadata['age'])
+        cnd = int(neuron.metadata['condition'].lower() == 'noisebox')
         
-        self.neuron_meta = self.nf.create_section(self.neuron.name, 'ca.neuron')
+        self.neuron_meta = self.nf.create_section(name, 'ca.neuron')
         self.neuron_meta['age'] = neuron.metadata['age']
         
         images = sorted(items_of_type(neuron.groups, "image.ca"),
@@ -174,30 +206,36 @@ class CaAnalyser(object):
             pdat = np.zeros((len(p), 2))
             pdat[:, 0] = p
             aps = "ap%d" % l
-            name = "%s.%s" % (self.neuron.name, aps)
-            pos = dff_peak.create_data_array(name + ".all", "nix.positions", data=pdat)
+            da_name = "%s.%s" % (self.neuron.name, aps)
+            pos = dff_peak.create_data_array(da_name + ".all", "nix.positions", data=pdat)
             pos.append_set_dimension()
             pos.append_set_dimension()
             
-            mtag = self.dff_peak.create_multi_tag(name, aps, pos)
+            mtag = self.dff_peak.create_multi_tag(da_name, aps, pos)
             mtag.references.append(self.peaks[pulses.index(l)])
 
             # calculate the mean per neuron, per pulse
             pidx = pulses.index(l)
             data = np.array([mtag.retrieve_data(pc, 0)[0] for pc in range(len(p))])
-            avg = self.avgs[pidx]
-            avg_pos = [avg.shape[0]]
             avg_data = data.mean()
-            avg.append(avg_data)
-            key = "P%d.ap%d" % (age, l)
-            self.ages[key].append(np.array([avg_pos]).reshape((1, )), axis=0)
             mean_ap[pidx] = avg_data
             # TODO: dimensions, metadata
 
         print(u'\n│ ├─ Means: ', end='')
         for i, m in enumerate(mean_ap):
-            print("ap%d: %3.2f; " % (pulses[i], m), end='')
+            avg = self.avgs[i]
+            avg_pos = [avg.shape[0]]
+            avg.append(m)
+            key = "P%d.ap%d" % (age, pulses[i])
+            self.ages[key].append(np.array(avg_pos)) # .reshape((1, )), axis=0)
+            print("ap%d: %3.2f @ %d; " % (pulses[i], m, avg_pos[0]), end='')
+
+        self.means.append(np.array(self.means.shape[0]))
+        self.fage.append(np.array([age]))
+        self.fcnd.append(np.array([cnd]))
+        self.fneu.append(np.array([self.neuron_id(name)]))
         print('')
+
 
     def process_image(self, image):
         self.image = image
