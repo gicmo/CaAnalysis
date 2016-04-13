@@ -71,6 +71,8 @@ class CaAnalyser(object):
         self.dff_mean = None
         self.dff_peak = None
         self.peaks = None
+        self.avgs = None
+        self.ages = None
         # Current processing state
         self.neuron = None
         self.image = None
@@ -99,7 +101,7 @@ class CaAnalyser(object):
         for da in self.avgs:
             da.append_set_dimension()
             
-        self.ages = { }
+        self.ages = {}
 
         for p in pulses:
             for a in ages:
@@ -109,7 +111,7 @@ class CaAnalyser(object):
                 self.ages[name] = da
                 
                 mtag = b.create_multi_tag(name, "pulse.avg@age", da)
-                mtag.references.append(self.avgs[pulses.index(p)])          
+                mtag.references.append(self.avgs[pulses.index(p)])
 
     def process(self):
         for path in self.filelist:
@@ -150,10 +152,14 @@ class CaAnalyser(object):
         self.neuron = neuron
         age = int(neuron.metadata['age'])
         
+        self.neuron_meta = self.nf.create_section(self.neuron.name, 'ca.neuron')
+        self.neuron_meta['age'] = neuron.metadata['age']
+        
         images = sorted(items_of_type(neuron.groups, "image.ca"),
                         key=lambda x: x.metadata['creation_time'])
 
         pos_loop = defaultdict(list)
+        
         for image in images:
             pos = self.process_image(image)
             for l, p in pos.items():
@@ -161,28 +167,36 @@ class CaAnalyser(object):
 
         print(u'│ ├─ Tags: ', end='')
         dff_peak = self.dff_peak
-        
+
+        mean_ap = [np.nan for _ in pulses]
         for l, p in pos_loop.items():
             print("ap%d " % l, end='')
             pdat = np.zeros((len(p), 2))
             pdat[:, 0] = p
             aps = "ap%d" % l
-            name =  "%s.%s" % (self.neuron.name, aps)
+            name = "%s.%s" % (self.neuron.name, aps)
             pos = dff_peak.create_data_array(name + ".all", "nix.positions", data=pdat)
             pos.append_set_dimension()
             pos.append_set_dimension()
             
             mtag = self.dff_peak.create_multi_tag(name, aps, pos)
             mtag.references.append(self.peaks[pulses.index(l)])
-            
+
+            # calculate the mean per neuron, per pulse
+            pidx = pulses.index(l)
             data = np.array([mtag.retrieve_data(pc, 0)[0] for pc in range(len(p))])
-            avg = self.avgs[pulses.index(l)]
+            avg = self.avgs[pidx]
             avg_pos = [avg.shape[0]]
-            avg.append(data.mean())
+            avg_data = data.mean()
+            avg.append(avg_data)
             key = "P%d.ap%d" % (age, l)
             self.ages[key].append(np.array([avg_pos]).reshape((1, )), axis=0)
-            
+            mean_ap[pidx] = avg_data
             # TODO: dimensions, metadata
+
+        print(u'\n│ ├─ Means: ', end='')
+        for i, m in enumerate(mean_ap):
+            print("ap%d: %3.2f; " % (pulses[i], m), end='')
         print('')
 
     def process_image(self, image):
@@ -203,7 +217,6 @@ class CaAnalyser(object):
         if len(loop) != len(red):
             print(' [len(loops) != len(condition)]', end='')
 
-
         imgs = split_image(kymo[:])
         self.loop = loop
 
@@ -218,7 +231,6 @@ class CaAnalyser(object):
             dff_data = dff(img[0], over_data, baseline=self.bsl)
 
             di = self.save_dff_full(idx, data=dff_data)
-            # TODO: metadata
 
             dff_mean = np.array(dff_data).mean(axis=0)
             da_mean = self.save_dff_mean(idx, data=dff_mean)
@@ -230,6 +242,12 @@ class CaAnalyser(object):
 
             pos_loop[l] += [da_peaks.shape[0]]
             da_peaks.append(np.array([peak_val, peak_idx]).reshape((1, 2)), axis=0)
+
+            # metadata handling
+            if False:
+                mi = self.neuron_meta.create_section(di.name, di.type)
+                mi['condition'] = l
+                di.metadata = mi
 
         print('] ')
         return pos_loop
