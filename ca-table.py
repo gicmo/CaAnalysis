@@ -75,11 +75,15 @@ def main():
     fcnd = index_of_name(tag.features, "condition")
     fage = index_of_name(tag.features, "age")
 
+    params = nf.sections['params']
+    over = params['over']
+    dlen = params['length']
+
     # print("neuron feature @ %d " % fneu, file=sys.stderr)
     # print("condition feature @ %d " % fcnd, file=sys.stderr)
     # print("age feature @ %d " % fage, file=sys.stderr)
 
-    print('Neuron,Age,Condition,%s,%s,%s,%s' % tuple(map(lambda t: t.name.split('.')[0], tag.references)))
+    print('Neuron,Age,Condition,Over,Length,%s,%s,%s,%s' % tuple(map(lambda t: t.name.split('.')[0], tag.references)))
     for p in pos:
         p = int(p)
         nid = tag.retrieve_feature_data(p, fneu)[0]
@@ -87,7 +91,7 @@ def main():
         cid = tag.retrieve_feature_data(p, fcnd)[0]
         condition = ['control', 'noisebox'][cid]
         age = tag.retrieve_feature_data(p, fage)[0]
-        print('%s,%d,%s,' % (neuron, age, condition), end='')
+        print('%s,%d,%s,%s,%s,' % (neuron, age, condition, over, dlen), end='')
         data = [tag.retrieve_data(p, idx)[0] for idx, _ in enumerate(pulses)]
         print(",".join(map(str, data)))
 
