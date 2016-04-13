@@ -264,9 +264,6 @@ class CaAnalyser(object):
         da = self.dff_mean.create_data_array(da_name, da_type, data=data)
         da.label = 'mean dF/F (%s)' % suffix
 
-        dim = da.append_set_dimension()
-        dim.label = 'location'
-
         dim = da.append_sampled_dimension(30)
         dim.label = 'time'
         dim.unit = 'ms'
