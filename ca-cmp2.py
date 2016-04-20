@@ -30,6 +30,7 @@ def main():
     parser.add_argument('y', type=str)
     parser.add_argument("--pulse", choices=map(lambda p: 'ap'+str(p), pulses), default='ap25')
     parser.add_argument("--age", default=None)
+    parser.add_argument("--noisebox", default=False, action='store_true')
     args = parser.parse_args()
 
     plt.style.use(args.style)
@@ -46,7 +47,15 @@ def main():
     if args.age is not None:
         result = result.loc[result['Age_x'] == int(args.age)]
 
+    noisebox = result.loc[result['Condition_y'] == "noisebox"]
+    result = result.loc[result['Condition_y'] == "control"]
+
     plt.scatter(result[args.x], result[args.y], c=result[args.pulse], cmap='plasma')
+
+    if args.noisebox:
+        plt.scatter(noisebox[args.x], noisebox[args.y], c=noisebox[args.pulse],
+                    facecolors='none', marker='D', lw=1.2, cmap='plasma')
+
     plt.xlabel(args.x)
     plt.ylabel(args.y)
     plt.colorbar()
