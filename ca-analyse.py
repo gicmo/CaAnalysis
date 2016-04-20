@@ -287,6 +287,12 @@ class CaAnalyser(object):
             over_data = img[1] if self.over == 'red' else None
             dff_data = dff(img[0], over_data, baseline=self.bsl)
 
+            if self.dlen is not None:
+                if dff_data.shape[0] < np.abs(self.dlen):
+                    print('SD; ', end='')
+                    continue
+                dff_data = dff_data[:self.dlen, :]
+
             di = self.save_dff_full(idx, data=dff_data)
 
             dff_mean = np.array(dff_data).mean(axis=0)
