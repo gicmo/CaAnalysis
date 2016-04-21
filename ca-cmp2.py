@@ -15,6 +15,7 @@ from scipy import stats
 
 import matplotlib.pyplot as plt
 
+from ca.cmd import RangedAction
 from ca.nix import *
 from ca.img import *
 
@@ -29,7 +30,7 @@ def main():
     parser.add_argument('x', type=str)
     parser.add_argument('y', type=str)
     parser.add_argument("--pulse", choices=map(lambda p: 'ap'+str(p), pulses), default='ap25')
-    parser.add_argument("--age", default=None)
+    parser.add_argument("--age", action=RangedAction, type=str, default=None)
     parser.add_argument("--noisebox", default=False, action='store_true')
     args = parser.parse_args()
 
@@ -45,7 +46,7 @@ def main():
     result.reset_index(inplace=True)
 
     if args.age is not None:
-        result = result.loc[result['Age_x'] == int(args.age)]
+        result = result.loc[result['Age_x'].isin(list(map(lambda a: int(a), args.age)))]
 
     noisebox = result.loc[result['Condition_y'] == "noisebox"]
     result = result.loc[result['Condition_y'] == "control"]

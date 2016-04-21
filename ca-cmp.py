@@ -35,7 +35,7 @@ def main():
     parser.add_argument("imaging")
     parser.add_argument('column')
     parser.add_argument("--pulse", choices=map(lambda p: 'ap'+str(p), pulses), default='ap25')
-    parser.add_argument("--age", default=None)
+    parser.add_argument("--age", action=RangedAction, type=str, default=None)
     parser.add_argument("--noisebox", default=False, action='store_true')
     args = parser.parse_args()
 
@@ -49,11 +49,11 @@ def main():
 
     result = pd.merge(mega, imga, how='inner', on=['Neuron'])
     result.reset_index(inplace=True)
-    print(result)
+
     result.to_csv('giga.csv')
 
     if args.age is not None:
-        result = result.loc[result['Age_x'] == int(args.age)]
+        result = result.loc[result['Age_x'].isin(list(map(lambda a: int(a), args.age)))]
 
     control = result.loc[result['Condition_y'] == "control"]
     noisebox = result.loc[result['Condition_y'] == "noisebox"]
