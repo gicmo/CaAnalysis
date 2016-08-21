@@ -5,10 +5,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import os
 import argparse
 
-import datetime
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -31,7 +29,7 @@ def main():
 
     plt.style.use(args.style)
 
-    df = pd.read_csv(args.file)
+    df = pd.read_csv(args.file if args.file != '-' else sys.stdin)
 
     over = df.Over.loc[1]
     dff = u'ΔG/R' if over == 'red' else u'ΔG/G'
