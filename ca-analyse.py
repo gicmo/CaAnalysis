@@ -6,10 +6,8 @@ from __future__ import absolute_import
 from __future__ import division
 
 import os
-import fnmatch
 import argparse
 
-import datetime
 from collections import defaultdict
 
 import nixio as nix
@@ -111,19 +109,19 @@ class CaAnalyser(object):
             da.append_set_dimension()
 
         self.avgs = [b.create_data_array("ap%d.avg" % p, "pulse.%d.max.avg" % p,
-                                          dtype='d', shape=(0,)) for p in pulses]
+                                         dtype='d', shape=(0,)) for p in pulses]
         for da in self.avgs:
             da.append_set_dimension()
-            
+
         self.ages = {}
 
         for p in pulses:
             for a in ages:
                 name = "P%d.ap%d" % (a, p)
                 da = b.create_data_array(name, "nix.position", dtype='d', shape=(0,))
-                da.append_set_dimension()                                          
+                da.append_set_dimension()
                 self.ages[name] = da
-                
+
                 mtag = b.create_multi_tag(name, "pulse.avg@age", da)
                 mtag.references.append(self.avgs[pulses.index(p)])
 
@@ -181,7 +179,7 @@ class CaAnalyser(object):
             if exclude:
                 msg += " skipping (exclude file)"
 
-            msg = (u'├── ' if exclude else u'├─┬ ' ) + msg
+            msg = (u'├── ' if exclude else u'├─┬ ') + msg
             print(msg.encode('utf-8'))
             if exclude:
                 time.sleep(0.5)
@@ -202,10 +200,10 @@ class CaAnalyser(object):
         name = neuron.name
         age = int(neuron.metadata['age'])
         cnd = int(neuron.metadata['condition'].lower() == 'noisebox')
-        
+
         self.neuron_meta = self.nf.create_section(name, 'ca.neuron')
         self.neuron_meta['age'] = neuron.metadata['age']
-        
+
         images = sorted(items_of_type(neuron.groups, "image.ca"),
                         key=lambda x: x.metadata['creation_time'])
 
@@ -251,7 +249,7 @@ class CaAnalyser(object):
             avg_pos = [avg.shape[0]]
             avg.append(m)
             key = "P%d.ap%d" % (age, pulses[i])
-            self.ages[key].append(np.array(avg_pos)) # .reshape((1, )), axis=0)
+            self.ages[key].append(np.array(avg_pos))  # .reshape((1, )), axis=0)
             print("ap%d: %3.2f @ %d; " % (pulses[i], m, avg_pos[0]), end='')
 
         self.means.append(np.array(self.means.shape[0]))
