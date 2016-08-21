@@ -92,7 +92,8 @@ class CaAnalyser(object):
         self.filelist = find_files_recursive(self.root, "[!c]*.nix")
         if len(self.filelist) == 0:
             return
-        outname = "ca-%s-bs%d-%s.nix" % (self.over, self.bsl, str(self.dlen or 'auto'))
+        outname = "ca-%s-bs%d-%s-%s.nix" % \
+                  (self.over, self.bsl, str(self.dlen or 'auto'), str(self.bg or 'uc'))
         self.nf = nix.File.open(outname, nix.FileMode.Overwrite)
         self.dff_full = self.nf.create_block("full", "dff.full")
         self.dff_mean = self.nf.create_block("mean", "dff.mean")
@@ -177,7 +178,7 @@ class CaAnalyser(object):
                 msg += " skipping (exclude file)"
 
             msg = (u'├── ' if exclude else u'├─┬ ' ) + msg
-            print(msg)
+            print(msg.encode('utf-8'))
             if exclude:
                 time.sleep(0.5)
                 self.neuron = None
@@ -208,14 +209,15 @@ class CaAnalyser(object):
 
         for image in images:
             if self.should_exclude_subimage(name, image.name, '*'):
-                print(u'│ ├── image: %s excluded. Skipping!' % (image.name))
+                msg = u'│ ├── image: %s excluded. Skipping!' % image.name
+                print(msg.encode('utf-8'))
                 continue
 
             pos = self.process_image(image)
             for l, p in pos.items():
                 pos_loop[l] += p
 
-        print(u'│ ├─ Tags: ', end='')
+        print(u'│ ├─ Tags: '.encode('utf-8'), end='')
         dff_peak = self.dff_peak
 
         mean_ap = [np.nan for _ in pulses]
@@ -228,7 +230,7 @@ class CaAnalyser(object):
             pos = dff_peak.create_data_array(da_name + ".all", "nix.positions", data=pdat)
             pos.append_set_dimension()
             pos.append_set_dimension()
-            
+
             mtag = self.dff_peak.create_multi_tag(da_name, aps, pos)
             mtag.references.append(self.peaks[pulses.index(l)])
 
@@ -239,7 +241,7 @@ class CaAnalyser(object):
             mean_ap[pidx] = avg_data
             # TODO: dimensions, metadata
 
-        print(u'\n│ ├─ Means: ', end='')
+        print(u'\n│ ├─ Means: '.encode('utf-8'), end='')
         for i, m in enumerate(mean_ap):
             avg = self.avgs[i]
             avg_pos = [avg.shape[0]]
@@ -264,10 +266,12 @@ class CaAnalyser(object):
         condition = meta['condition']
         loop = loops.get(condition, None)
         if loop is None:
-            print(u'│ ├──  WARN: unknown loop: %s. skipping!' % condition)
+            msg = u'│ ├──  WARN: unknown loop: %s. skipping!' % condition
+            print(u.encode('utf-8'))
             return
         else:
-            print(u'│ ├── image: %s, Loop: %s' % (image.name, condition), end='')
+            msg = u'│ ├── image: %s, Loop: %s' % (image.name, condition)
+            print(msg.encode('utf-8'), end='')
         if len(loop) != len(red):
             print(' [len(loops) != len(condition)]', end='')
 
