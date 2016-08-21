@@ -87,6 +87,10 @@ class CaAnalyser(object):
         self.loop = None
         # helper stuff
         self.chmap = map(chr, range(ord('a'), ord('z')+1))
+        # for background correction
+        self.bg = None
+        # for warning/error reporting
+        self.warnings = []
 
     def setup(self):
         self.filelist = find_files_recursive(self.root, "[!c]*.nix")
@@ -256,6 +260,21 @@ class CaAnalyser(object):
         self.fneu.append(np.array([self.neuron_id(name)]))
         print('')
 
+    def maybe_background(self, das):
+        if self.bg is None:
+            return None
+
+        bgs = items_of_type(das, 'kymo.bg')
+        target = '%s.kymo.%s' % (self.image.name, self.bg)
+        matches = [bg for bg in bgs if bg.name == target]
+        if len(matches) != 1:
+            msg = " %s/%s: could not find exact background '%s' (%d)" \
+                  % (self.neuron.name, self.image.name, self.bg, len(matches))
+            print("[WARNING] %s\n" % msg)
+            self.warnings += [msg]
+            return None
+        return matches[0]
+
     def process_image(self, image):
         self.image = image
         meta = image.metadata
@@ -263,6 +282,7 @@ class CaAnalyser(object):
         channels = item_of_type(das, "channel")
         red = list(np.nonzero(np.array(channels) == 1)[0])
         kymo = item_of_type(das, 'kymo.fg')
+        bgko = self.maybe_background(das)
         condition = meta['condition']
         loop = loops.get(condition, None)
         if loop is None:
@@ -276,6 +296,7 @@ class CaAnalyser(object):
             print(' [len(loops) != len(condition)]', end='')
 
         imgs = split_image(kymo[:])
+        bgs = split_image(bgko[:]) if bgko is not None else [(None, None)]*len(imgs)
         self.loop = loop
 
         pos_loop = defaultdict(list)
@@ -286,10 +307,13 @@ class CaAnalyser(object):
             if self.should_exclude_subimage(self.neuron.name, image.name, idx+1):
                 print('SK; ', end='')
                 continue
-            img = imgs[idx]
 
+            img = imgs[idx]
+            bg = bgs[idx]
+
+            bg_data = bg[1] if self.over == 'red' else bg[0]
             over_data = img[1] if self.over == 'red' else None
-            dff_data = dff(img[0], over_data, baseline=self.bsl)
+            dff_data = dff(img[0], over_data, baseline=self.bsl, bg=bg_data)
 
             if self.dlen is not None:
                 if dff_data.shape[0] < np.abs(self.dlen):
@@ -366,6 +390,7 @@ def main():
     parser.add_argument("over", choices=["red", "green"])
     parser.add_argument("--baseline", type=int, default=10)
     parser.add_argument("--length", type=int, default=None)
+    parser.add_argument("--background", type=str, default=None)
 
     args = parser.parse_args()
 
@@ -376,9 +401,13 @@ def main():
         excludes = load_exclude(ep)
 
     analyser = CaAnalyser(args.root, args.over, args.baseline, args. length, excludes)
+    analyser.bg = args.background
     analyser.setup()
     analyser.process()
     analyser.finish()
+
+    if len(analyser.warnings) > 0:
+        print("WARNINGS: \n  " + "\n  ".join(analyser.warnings), file=sys.stderr)
 
 if __name__ == '__main__':
     main()
