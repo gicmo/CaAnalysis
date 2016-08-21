@@ -40,7 +40,10 @@ def main():
     if args.age is not None:
         result = result.loc[result['Age'].isin(list(map(lambda a: int(a), args.age)))]
 
-    noisebox = result.loc[result['Condition'] == "noisebox"]
+    conds = np.unique(result.Condition)
+    nbcond = [x for x in conds if x.startswith("noise")][0]
+
+    noisebox = result.loc[result['Condition'] == nbcond]
     result = result.loc[result['Condition'] == "control"]
 
     plt.scatter(result[args.x], result[args.y], c=result[args.pulse], cmap='plasma')

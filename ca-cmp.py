@@ -7,6 +7,9 @@ from __future__ import division
 
 import argparse
 import pandas as pd
+import numpy as np
+
+from ca.cmd import RangedAction
 
 import matplotlib.pyplot as plt
 
@@ -24,7 +27,7 @@ age_to_color = {10: [0xFF, 0xAA, 0x00],
 
 
 def col_age_to_color(col):
-    for a in col['Age_x']:
+    for a in col['Age']:
         yield list(map(lambda x: x/0xFF, age_to_color[a]))
 
 
@@ -45,8 +48,11 @@ def main():
     if args.age is not None:
         result = result.loc[result['Age'].isin(list(map(lambda a: int(a), args.age)))]
 
+    conds = np.unique(result.Condition)
+    nbcond = [x for x in conds if x.startswith("noise")][0]
+
     control = result.loc[result['Condition'] == "control"]
-    noisebox = result.loc[result['Condition'] == "noisebox"]
+    noisebox = result.loc[result['Condition'] == nbcond]
 
     column = args.column
     plt.scatter(control[column], control[args.pulse], color=list(col_age_to_color(control)), alpha=0.5)

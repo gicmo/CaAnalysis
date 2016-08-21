@@ -71,8 +71,11 @@ def main():
     ax2.set_xlabel('Postnatal day (P)')
     ax1.set_ylabel(dff)
 
+    conds = np.unique(df.Condition)
+    nbcond = [x for x in conds if x.startswith("noise")][0]
+
     # noisebox
-    ndat = df.loc[df.Condition == 'noisebox']
+    ndat = df.loc[df.Condition == nbcond]
     nages = np.unique(ndat.Age)
     aged = ndat.groupby(['Age'])
 
@@ -97,7 +100,7 @@ def main():
     plt.figure()
     offset = 0.0
     for age in common:
-        nb = gd.get_group((age, 'noisebox'))
+        nb = gd.get_group((age, nbcond))
         nb_sem = stats.sem(nb[args.pulse], nan_policy='omit')
         nb_mean = np.nanmean(nb[args.pulse])
         plt.scatter(age+offset, nb_mean, color='orange', s=30)
