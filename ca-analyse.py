@@ -148,6 +148,8 @@ class CaAnalyser(object):
         s['baseline'] = self.bsl
         s['length'] = self.dlen or 'auto'
         s['over'] = self.over
+        if self.bg is not None:
+            s['bg-correction'] = self.bg
 
     def should_exclude_subimage(self, neuron, image, subimage):
         if neuron not in self.excludes:
