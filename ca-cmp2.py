@@ -25,7 +25,6 @@ pulses = [1, 3, 10, 25]
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument('--style', nargs='*', type=str, default=['ck'])
-    parser.add_argument("megatable")
     parser.add_argument("imaging")
     parser.add_argument('x', type=str)
     parser.add_argument('y', type=str)
@@ -36,20 +35,13 @@ def main():
 
     plt.style.use(args.style)
 
-    mega = pd.read_csv(args.megatable)
-    imga = pd.read_csv(args.imaging)
-
-    mega.set_index(['Neuron'])
-    imga.set_index(['Neuron'])
-
-    result = pd.merge(mega, imga, how='inner', on=['Neuron'])
-    result.reset_index(inplace=True)
+    result = pd.read_csv(args.imaging)
 
     if args.age is not None:
-        result = result.loc[result['Age_x'].isin(list(map(lambda a: int(a), args.age)))]
+        result = result.loc[result['Age'].isin(list(map(lambda a: int(a), args.age)))]
 
-    noisebox = result.loc[result['Condition_y'] == "noisebox"]
-    result = result.loc[result['Condition_y'] == "control"]
+    noisebox = result.loc[result['Condition'] == "noisebox"]
+    result = result.loc[result['Condition'] == "control"]
 
     plt.scatter(result[args.x], result[args.y], c=result[args.pulse], cmap='plasma')
 

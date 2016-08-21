@@ -31,7 +31,6 @@ def col_age_to_color(col):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument('--style', nargs='*', type=str, default=['ck'])
-    parser.add_argument("megatable")
     parser.add_argument("imaging")
     parser.add_argument('column')
     parser.add_argument("--pulse", choices=map(lambda p: 'ap'+str(p), pulses), default='ap25')
@@ -41,22 +40,13 @@ def main():
 
     plt.style.use(args.style)
 
-    mega = pd.read_csv(args.megatable)
-    imga = pd.read_csv(args.imaging)
-
-    mega.set_index(['Neuron'])
-    imga.set_index(['Neuron'])
-
-    result = pd.merge(mega, imga, how='inner', on=['Neuron'])
-    result.reset_index(inplace=True)
-
-    result.to_csv('giga.csv')
+    result = pd.read_csv(args.imaging)
 
     if args.age is not None:
-        result = result.loc[result['Age_x'].isin(list(map(lambda a: int(a), args.age)))]
+        result = result.loc[result['Age'].isin(list(map(lambda a: int(a), args.age)))]
 
-    control = result.loc[result['Condition_y'] == "control"]
-    noisebox = result.loc[result['Condition_y'] == "noisebox"]
+    control = result.loc[result['Condition'] == "control"]
+    noisebox = result.loc[result['Condition'] == "noisebox"]
 
     column = args.column
     plt.scatter(control[column], control[args.pulse], color=list(col_age_to_color(control)), alpha=0.5)
