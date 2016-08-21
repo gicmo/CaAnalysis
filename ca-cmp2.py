@@ -47,7 +47,7 @@ def main():
 
     if args.noisebox:
         plt.scatter(noisebox[args.x], noisebox[args.y], c=noisebox[args.pulse],
-                    facecolors='none', marker='D', lw=1.2, cmap='plasma')
+                    facecolors='none', marker='+', lw=1.2, cmap='plasma')
 
     plt.xlabel(args.x)
     plt.ylabel(args.y)
