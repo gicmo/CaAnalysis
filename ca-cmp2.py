@@ -5,16 +5,13 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import os
 import argparse
 
-import datetime
-import numpy as np
 import pandas as pd
-from scipy import stats
 
 import matplotlib.pyplot as plt
 
+from ca.util import get_nb_condition
 from ca.cmd import RangedAction
 from ca.nix import *
 from ca.img import *
@@ -40,8 +37,7 @@ def main():
     if args.age is not None:
         result = result.loc[result['Age'].isin(list(map(lambda a: int(a), args.age)))]
 
-    conds = np.unique(result.Condition)
-    nbcond = [x for x in conds if x.startswith("noise")][0]
+    nbcond = get_nb_condition(result)
 
     noisebox = result.loc[result['Condition'] == nbcond]
     result = result.loc[result['Condition'] == "control"]

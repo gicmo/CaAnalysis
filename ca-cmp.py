@@ -9,6 +9,7 @@ import argparse
 import pandas as pd
 import numpy as np
 
+from ca.util import get_nb_condition
 from ca.cmd import RangedAction
 
 import matplotlib.pyplot as plt
@@ -48,8 +49,7 @@ def main():
     if args.age is not None:
         result = result.loc[result['Age'].isin(list(map(lambda a: int(a), args.age)))]
 
-    conds = np.unique(result.Condition)
-    nbcond = [x for x in conds if x.startswith("noise")][0]
+    nbcond = get_nb_condition(result)
 
     control = result.loc[result['Condition'] == "control"]
     noisebox = result.loc[result['Condition'] == nbcond]

@@ -13,6 +13,7 @@ from scipy import stats
 
 import matplotlib.pyplot as plt
 
+from ca.util import get_nb_condition
 from ca.nix import *
 from ca.img import *
 
@@ -71,8 +72,7 @@ def main():
     ax2.set_xlabel('Postnatal day (P)')
     ax1.set_ylabel(dff)
 
-    conds = np.unique(df.Condition)
-    nbcond = [x for x in conds if x.startswith("noise")][0]
+    nbcond = get_nb_condition(df)
 
     # noisebox
     ndat = df.loc[df.Condition == nbcond]
