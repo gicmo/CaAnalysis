@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--not", dest='inverse', action="store_true", default=False)
     parser.add_argument('--litter', dest='litter', default=None)
     parser.add_argument('--dendrite', dest='dendrite', default=None)
+    parser.add_argument('-f,--field', dest='field', nargs='*', type=str, default=None)
 
     args = parser.parse_args()
 
@@ -35,6 +36,11 @@ def main():
 
     if args.dendrite:
         df = do_filter(df, "Dendrite", args.dendrite, args.inverse)
+
+    if args.field is not None:
+        ff = [x.split('=') for x in args.field]
+        for k, v in ff:
+            df = do_filter(df, k, v, args.inverse)
 
     df.to_csv(sys.stdout, index=False)
 
