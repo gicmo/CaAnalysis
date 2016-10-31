@@ -78,6 +78,7 @@ class CaAnalyser(object):
         self.fcnd = None  # neuron condition [feature]
         self.fage = None  # neuron age [feature]
         self.fneu = None  # neuron name [feature]
+        self.dff_full_pulses = {}  # groups for condition
         # Current processing state
         self.neuron = None
         self.image = None
@@ -150,6 +151,12 @@ class CaAnalyser(object):
         s['over'] = self.over
         if self.bg is not None:
             s['bg-correction'] = self.bg
+
+        b = self.dff_full
+
+        #for p in pulses:
+        #   self.dff_full_pulses[p] = b.create_group("ap%d" % p, "pulse.%d" % p)
+
 
     def should_exclude_subimage(self, neuron, image, subimage):
         if neuron not in self.excludes:
@@ -333,6 +340,9 @@ class CaAnalyser(object):
 
             pos_loop[l] += [da_peaks.shape[0]]
             da_peaks.append(np.array([peak_val, peak_idx]).reshape((1, 2)), axis=0)
+
+            # group handling
+            # self.dff_full_pulses[l].data_arrays.append(di)
 
             # metadata handling
             if False:
