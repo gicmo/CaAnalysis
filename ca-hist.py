@@ -33,7 +33,16 @@ def analyse_image(image):
     return kymo.shape[0]
 
 
-def analyse_neuron(neuron):
+def analyse_neuron(neuron, args):
+    meta = neuron.metadata
+    age = meta['age']
+    cond = meta['condition']
+
+    if args.condition is not None and cond != args.condition:
+        return None
+    if args.age is not None and age != args.age:
+        return None
+
     images = sorted(items_of_type(neuron.groups, "image.ca"),
                     key=lambda x: x.metadata['creation_time'])
 
@@ -43,6 +52,8 @@ def analyse_neuron(neuron):
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--bins", default=10)
+    parser.add_argument("--condition", default=None)
+    parser.add_argument("--age", default=None)
     parser.add_argument("path")
     args = parser.parse_args()
 
@@ -56,10 +67,13 @@ def main():
         if len(neurons) != 1:
             print("[W] More then one neuron in file, funny")
 
-        lens += [analyse_neuron(n) for n in neurons]
+        lens += filter(lambda x: x is not None, [analyse_neuron(n, args) for n in neurons])
 
     print(lens)
     plt.hist(lens, bins=args.bins)
+    age = args.age or "all"
+    cond = args.condition or "all"
+    plt.title("age: %s, condition: %s" % (age, cond))
     plt.show()
 
 
