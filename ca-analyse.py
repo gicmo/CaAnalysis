@@ -59,7 +59,7 @@ def load_exclude(path):
 
 
 class CaAnalyser(object):
-    def __init__(self, root, over, baseline, dlen, cut, excludes):
+    def __init__(self, root, over, baseline, dlen, cut, excludes, pframe):
         self.root = root
         self.excludes = excludes or {}
         self.filelist = None
@@ -67,6 +67,7 @@ class CaAnalyser(object):
         self.dlen = dlen
         self.cut = cut
         self.over = over
+        self.pframe = pframe
         # NIX outfile related things
         self.nf = None
         self.dff_full = None
@@ -96,8 +97,17 @@ class CaAnalyser(object):
         self.filelist = find_files_recursive(self.root, "[!c]*.nix")
         if len(self.filelist) == 0:
             return
-        outname = "ca-%s-bs%d-%s-%s.nix" % \
-                  (self.over, self.bsl, str(self.dlen or 'auto') + str("c" if self.cut else "p"), str(self.bg or 'uc'))
+        peak_frame = 'full'
+        pst, pnd = self.pframe
+        if pst is not None or pnd is not None:
+            peak_frame = "%s_%s" % ((pst or 0), (pnd or "end"))
+
+        outname = "ca-%s-bs%d-%s-%s-%s.nix" % \
+                  (self.over,
+                   self.bsl,
+                   str(self.dlen or 'auto') + str("c" if self.cut else "p"),
+                   str(self.bg or 'uc'),
+                   peak_frame)
         self.nf = nix.File.open(outname, nix.FileMode.Overwrite)
         self.dff_full = self.nf.create_block("full", "dff.full")
         self.dff_mean = self.nf.create_block("mean", "dff.mean")
@@ -153,6 +163,11 @@ class CaAnalyser(object):
         s['over'] = self.over
         if self.bg is not None:
             s['bg-correction'] = self.bg
+
+        if pst is not None:
+            s['peak-start'] = pst
+        if pnd is not None:
+            s['peak-end'] = pnd
 
         b = self.dff_full
 
@@ -334,6 +349,12 @@ class CaAnalyser(object):
 
             dff_mean = np.array(dff_data).mean(axis=0)
             da_mean = self.save_dff_mean(idx, data=dff_mean)
+            if self.pframe[1] is not None:
+                pend = self.pframe[1]
+                dff_mean = dff_mean[:pend]
+            if self.pframe[0] is not None:
+                pstart = self.pframe[0]
+                dff_mean = dff_mean[pstart:]
 
             peak_idx = np.argmax(dff_mean)
             peak_val = dff_mean[peak_idx]
@@ -404,6 +425,8 @@ def main():
     parser.add_argument("--length", type=int, default=None)
     parser.add_argument("--cut", default=False, action="store_true")
     parser.add_argument("--background", type=str, default=None)
+    parser.add_argument("--peak-start", dest='pstart', default=None, type=int)
+    parser.add_argument("--peak-end", dest='pend', default=None, type=int)
 
     args = parser.parse_args()
 
@@ -417,7 +440,7 @@ def main():
         print("Using exludes.csv @ %s" % ep)
         excludes = load_exclude(ep)
 
-    analyser = CaAnalyser(args.root, args.over, args.baseline, args.length, args.cut, excludes)
+    analyser = CaAnalyser(args.root, args.over, args.baseline, args.length, args.cut, excludes, (args.pstart, args.pend))
     analyser.bg = args.background
     analyser.setup()
     analyser.process()
