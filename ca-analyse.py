@@ -59,12 +59,13 @@ def load_exclude(path):
 
 
 class CaAnalyser(object):
-    def __init__(self, root, over, baseline, dlen, excludes):
+    def __init__(self, root, over, baseline, dlen, cut, excludes):
         self.root = root
         self.excludes = excludes or {}
         self.filelist = None
         self.bsl = baseline
         self.dlen = dlen
+        self.cut = cut
         self.over = over
         # NIX outfile related things
         self.nf = None
@@ -96,7 +97,7 @@ class CaAnalyser(object):
         if len(self.filelist) == 0:
             return
         outname = "ca-%s-bs%d-%s-%s.nix" % \
-                  (self.over, self.bsl, str(self.dlen or 'auto'), str(self.bg or 'uc'))
+                  (self.over, self.bsl, str(self.dlen or 'auto') + str("c" if self.cut else "p"), str(self.bg or 'uc'))
         self.nf = nix.File.open(outname, nix.FileMode.Overwrite)
         self.dff_full = self.nf.create_block("full", "dff.full")
         self.dff_mean = self.nf.create_block("mean", "dff.mean")
@@ -147,6 +148,7 @@ class CaAnalyser(object):
 
         s = self.nf.create_section('params', 'params')
         s['baseline'] = self.bsl
+        s['cut'] = 1 if self.cut else 0
         s['length'] = self.dlen or 'auto'
         s['over'] = self.over
         if self.bg is not None:
@@ -156,7 +158,6 @@ class CaAnalyser(object):
 
         #for p in pulses:
         #   self.dff_full_pulses[p] = b.create_group("ap%d" % p, "pulse.%d" % p)
-
 
     def should_exclude_subimage(self, neuron, image, subimage):
         if neuron not in self.excludes:
@@ -326,7 +327,8 @@ class CaAnalyser(object):
                 if dff_data.shape[0] < np.abs(self.dlen):
                     print('SD; ', end='')
                     continue
-                dff_data = dff_data[:self.dlen, :]
+                if self.cut:
+                    dff_data = dff_data[:self.dlen, :]
 
             di = self.save_dff_full(idx, data=dff_data)
 
@@ -400,9 +402,14 @@ def main():
     parser.add_argument("over", choices=["red", "green"])
     parser.add_argument("--baseline", type=int, default=10)
     parser.add_argument("--length", type=int, default=None)
+    parser.add_argument("--cut", default=False, action="store_true")
     parser.add_argument("--background", type=str, default=None)
 
     args = parser.parse_args()
+
+    if args.cut and args.length is None:
+        print("--cut requires --length", file=sys.stderr)
+        os.exit(1)
 
     excludes = None
     ep = os.path.join(args.root, 'exludes.csv')
@@ -410,7 +417,7 @@ def main():
         print("Using exludes.csv @ %s" % ep)
         excludes = load_exclude(ep)
 
-    analyser = CaAnalyser(args.root, args.over, args.baseline, args. length, excludes)
+    analyser = CaAnalyser(args.root, args.over, args.baseline, args.length, args.cut, excludes)
     analyser.bg = args.background
     analyser.setup()
     analyser.process()
