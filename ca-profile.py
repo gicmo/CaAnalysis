@@ -81,6 +81,8 @@ def main():
     parser.add_argument('--end', default=24, type=int)
     parser.add_argument('--age', default=None, type=int)
     parser.add_argument('--condition', default=None)
+    parser.add_argument('--data', default=False, action='store_true')
+    parser.add_argument('--igor', default=False, action='store_true')
     parser.add_argument("file")
 
     args = parser.parse_args()
@@ -91,6 +93,7 @@ def main():
     if args.condition is not None:
         cnd = args.condition
         images = [img for img in images if cnd == get_condition(img, nf)]
+    images = sorted(images, key=lambda x: x.name[:9])
     grouped = reduce(group_by_name, images[1:], [[images[0]]])
     start, end = args.start, args.end
     plt.figure()
@@ -98,11 +101,16 @@ def main():
     if args.age is not None:
         grouped_sorted = filter(mk_filter_by_age(nf, args.age), grouped_sorted)
     lens = [imgs[0].shape[0] for imgs in grouped_sorted]
-    alldata = np.zeros((max(lens), len(grouped_sorted)))
-    print(alldata.shape, len(grouped_sorted))
+    alldata = np.empty((max(lens), len(grouped_sorted)))
+    alldata[:] = np.NAN
+    print(alldata.shape, len(grouped_sorted), file=sys.stderr)
+    if args.data:
+        print("number,neuron,length,%s" % (
+            ",".join(list(map(str, range(alldata.shape[0]))))
+        ))
     for i, da in enumerate(grouped_sorted):
         name = da[0].name[:9]
-        print("%d: %s [%d]" % (i, name, len(da[0])))
+        print("%d: %s [%d]" % (i, name, len(da[0])), file=sys.stderr)
         data = np.array([img[:, start:end].mean(axis=1) for img in da])
         mms = data.mean(axis=0).squeeze()
         alldata[:len(mms), i] = mms
@@ -111,6 +119,23 @@ def main():
             plt.plot(mms, label='%0.2d - %s' % (i, name))
         else:
             plt.plot(mms, color=color)
+        if args.data:
+            print("%d,%s,%d,%s" % (
+                i, name, len(mms),
+                ",".join(list(map(lambda x: str(alldata[x, i]), range(alldata.shape[0]))))
+            ))
+
+    if args.igor:
+        names = ["%s_p%d_%s" % (da[0].name[:9], get_age(da[0], nf), get_condition(da[0], nf)) for da in grouped_sorted]
+
+        print(",".join(names))
+        for k in range(alldata.shape[0]):
+            for n in range(alldata.shape[1]):
+                if n > 0:
+                    print(",", end="")
+                print("%f" % alldata[k, n], end="")
+            print("")
+
 
     if args.age is not None:
         plt.legend(fontsize='7')
