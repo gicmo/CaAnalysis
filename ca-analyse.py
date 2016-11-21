@@ -228,6 +228,7 @@ class CaAnalyser(object):
 
         self.neuron_meta = self.nf.create_section(name, 'ca.neuron')
         self.neuron_meta['age'] = neuron.metadata['age']
+        self.neuron_meta['condition'] = neuron.metadata['condition']
 
         images = sorted(items_of_type(neuron.groups, "image.ca"),
                         key=lambda x: x.metadata['creation_time'])
