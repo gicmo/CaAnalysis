@@ -16,6 +16,7 @@ import sys
 
 
 from ca.nix import item_of_type
+from collections import defaultdict
 
 
 def get_related_metadata(da, metadata, nf):
@@ -67,14 +68,26 @@ def read_exclude(path):
     with open(os.path.expanduser(path)) as pf:
         lines = pf.readlines()
     lines = list(map(lambda x: x.strip(), lines))
-    return lines
+    excludes = defaultdict(list)
+    for l in lines:
+        x = l.split(',')
+        ex = []
+        if len(x) > 1:
+            ex = x[1:]
+        excludes[x[0]] = ex
+    return excludes
 
 
 def mk_filter_excludes(names):
     def _filter(g):
         name = g[0].name[:9]
-        return name not in names
+        return name not in names or len(names[name])
     return _filter
+
+
+def mk_condition_name(name):
+    return {'control': 'CT',
+            'noisebox': 'NB'}[name.lower()]
 
 
 def main():
@@ -100,9 +113,6 @@ def main():
     n_removed = len(grouped) - len(grouped_filtered)
     print('removed %d neuros' % (n_removed),
           file=sys.stderr)
-    if n_removed != len(excludes):
-        print("ERROR: number of excludes and removed neurons not the same!!")
-        return -1
     grouped_sorted = sorted(grouped_filtered, key=mk_sorter_by_age(nf))
     lens = [imgs[0].shape[0] for imgs in grouped_sorted]
     alldata = np.empty((max(lens), sum([len(g) for g in grouped_sorted])))
@@ -114,15 +124,20 @@ def main():
         first_da = g[0]
         neuron_name = first_da.name[:9]
         age = get_age(first_da, nf)
-        condition = get_condition(first_da, nf)[0].upper()
+        condition = mk_condition_name(get_condition(first_da, nf))
         # print("- %s (%s, %s)" % (neuron_name, age, condition), file=sys.stderr)
         imgs = sorted(g, key=da_name_get_number)
+        exlist = excludes.get(neuron_name, [])
+        rep = 1
         for i, img in enumerate(imgs):
-            rep = i+1
+            if str(i+1) in exlist:
+                print("\t - %s excluded" % img.name, file=sys.stderr)
+                continue
             name = "%s_p%s_%s_%d" % (neuron_name, age, condition, rep)
             print("\t - [%s -> %s]" % (name, img.name), file=sys.stderr)
             alldata[:, count] = np.array(img[:])
             count += 1
+            rep += 1
             names.append(name)
 
     outfile = sys.stdout
