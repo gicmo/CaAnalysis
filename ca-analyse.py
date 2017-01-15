@@ -403,7 +403,7 @@ class CaAnalyser(object):
 
     def save_dff_mean(self, idx, data):
         suffix = self.over
-        da_name = "%s.%s.%d.%s" % (self.neuron.name, self.image.name, idx+1, suffix)
+        da_name = "%s.ap%0.2d.%s.%d.%s" % (self.neuron.name, self.loop[idx], self.image.name, idx+1, suffix)
         da_type = "dff.mean." + suffix
         da = self.dff_mean.create_data_array(da_name, da_type, data=data)
         da.label = 'mean dF/F (%s)' % suffix
