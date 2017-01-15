@@ -141,7 +141,7 @@ def main():
         plt.legend(fontsize='7')
 
     plt.figure()
-    plt.imshow(alldata.T, interpolation="none")
+    plt.imshow(alldata.T, interpolation="none", aspect="auto")
     plt.colorbar()
     plt.show()
 
