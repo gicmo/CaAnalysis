@@ -83,17 +83,21 @@ def main():
     baseline = params['baseline']
     over = params['over']
     dlen = params['length']
+    pst = params['peak-start'] if 'peak-start' in params else None
+    pnd = params['peak-end'] if 'peak-end' in params else None
     bg = params['bg-correction'] if 'bg-correction' in params else None
 
     # print("neuron feature @ %d " % fneu, file=sys.stderr)
     # print("condition feature @ %d " % fcnd, file=sys.stderr)
     # print("age feature @ %d " % fage, file=sys.stderr)
 
+    peak_ind = "_".join(map(str, filter(lambda x: x is not None, [pst, pnd])))
+
     print("baseline: %s" % baseline, file=sys.stderr)
     print("over correction: %s" % over, file=sys.stderr)
     print("dendrite length: %s" % dlen, file=sys.stderr)
     print("background correction: %s" % (bg or 'uncorrected'), file=sys.stderr)
-
+    print("peak range: %s" % peak_ind)
     outfile = StringIO.StringIO('')
 
     print('Neuron,Age,Condition,Over,Length,%s,%s,%s,%s'
