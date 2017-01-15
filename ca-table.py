@@ -60,6 +60,17 @@ def index_of_name(lst, name):
     return -1
 
 
+def neuron_dendrite_length(full, neuron):
+    n = None
+    for n in full.data_arrays:
+        if n.name.startswith(neuron):
+            break
+        n = None
+    if n is None:
+        return np.NaN
+    return n.shape[0]
+
+
 def main():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument('--stdout', action="store_true", default=False)
@@ -70,6 +81,7 @@ def main():
 
     nf = nix.File.open(args.file, nix.FileMode.ReadOnly)
 
+    full = item_of_type(nf.blocks, "dff.full")
     b = item_of_type(nf.blocks, "dff.peak")
     tag = item_of_type(b.multi_tags, "pulse.avg")
 
@@ -111,6 +123,7 @@ def main():
         cid = tag.retrieve_feature_data(p, fcnd)[0]
         condition = ['control', 'noisebox'][cid]
         age = tag.retrieve_feature_data(p, fage)[0]
+        dlen = neuron_dendrite_length(full, neuron)
         print('%s,%d,%s,%s,%s,' % (neuron, age, condition, over, dlen), end='', file=outfile)
         data = [tag.retrieve_data(p, idx)[0] for idx, _ in enumerate(pulses)]
         print(",".join(map(str, data)), file=outfile)
@@ -127,7 +140,7 @@ def main():
     rename = {c: c[:-2] for c in result.columns if c.endswith("_x")}
     result.rename(columns=rename, inplace=True)
 
-    filename = "img.%s.%s.%s.%s.csv" % (over, baseline, dlen, (bg or 'uc'))
+    filename = "img.%s.%s.%s.%s.%s.csv" % (over, baseline, dlen, peak_ind, (bg or 'uc'))
     result.to_csv(filename if not args.stdout else sys.stdout, index=False)
     if not args.stdout:
         print("\ndone, data written to:\n%s\n" % filename)
