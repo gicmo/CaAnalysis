@@ -45,8 +45,8 @@ def main():
     for k, v in ff:
         y = do_filter(y, k, v, False) 
 
-    a = np.array(x[args.target])
-    b = np.array(y[args.target])
+    a = np.array(filter(lambda x: not np.isnan(x), x[args.target]))
+    b = np.array(filter(lambda x: not np.isnan(x), y[args.target]))
 
     Wa, pa = scipy.stats.shapiro(a)
     Wb, pb = scipy.stats.shapiro(b)
