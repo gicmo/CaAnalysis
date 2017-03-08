@@ -311,7 +311,7 @@ class CaAnalyser(object):
         loop = loops.get(condition, None)
         if loop is None:
             msg = u'│ ├──  WARN: unknown loop: %s. skipping!' % condition
-            print(u.encode('utf-8'))
+            print(msg.encode('utf-8'))
             return
         else:
             msg = u'│ ├── image: %s, Loop: %s' % (image.name, condition)
